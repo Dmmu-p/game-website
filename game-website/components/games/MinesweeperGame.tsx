@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { saveBestScore } from "@/lib/games";
+import { useFitCellSize } from "./useFitCellSize";
 
 type Difficulty = "easy" | "medium" | "hard";
 
@@ -27,6 +28,7 @@ export default function MinesweeperGame() {
   const [minesLeft, setMinesLeft] = useState(CONFIG.easy.mines);
   const [time, setTime] = useState(0);
   const [best, setBest] = useState(0);
+  const [flagMode, setFlagMode] = useState(false);
 
   const { rows, cols, mines } = CONFIG[difficulty];
 
@@ -106,8 +108,24 @@ export default function MinesweeperGame() {
     [difficulty]
   );
 
+  const toggleFlag = (r: number, c: number) => {
+    if (status !== "playing") return;
+    const cell = cells[r][c];
+    if (cell.revealed) return;
+    setCells((prev) => {
+      const nb = prev.map((row) => row.map((x) => ({ ...x })));
+      nb[r][c].flagged = !nb[r][c].flagged;
+      return nb;
+    });
+    setMinesLeft((m) => m + (cell.flagged ? 1 : -1));
+  };
+
   const onLeftClick = (r: number, c: number) => {
     if (status !== "playing") return;
+    if (flagMode) {
+      toggleFlag(r, c);
+      return;
+    }
     const cell = cells[r][c];
     if (cell.revealed || cell.flagged) return;
     if (cell.mine) {
@@ -133,18 +151,10 @@ export default function MinesweeperGame() {
 
   const onRightClick = (r: number, c: number, e: React.MouseEvent) => {
     e.preventDefault();
-    if (status !== "playing") return;
-    const cell = cells[r][c];
-    if (cell.revealed) return;
-    setCells((prev) => {
-      const nb = prev.map((row) => row.map((x) => ({ ...x })));
-      nb[r][c].flagged = !nb[r][c].flagged;
-      return nb;
-    });
-    setMinesLeft((m) => m + (cell.flagged ? 1 : -1));
+    toggleFlag(r, c);
   };
 
-  const cellSize = Math.min(34, Math.floor((cols > 12 ? 330 : 360) / cols));
+  const cellSize = useFitCellSize(cols, 34, 14);
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -154,7 +164,7 @@ export default function MinesweeperGame() {
         <span className="rounded-full bg-zinc-500/15 px-4 py-1.5 text-zinc-600 dark:text-zinc-400">最佳 {best || "—"}s</span>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-2">
         {(Object.keys(CONFIG) as Difficulty[]).map((d) => (
           <button
             key={d}
@@ -168,13 +178,26 @@ export default function MinesweeperGame() {
             {d === "easy" ? "初级" : d === "medium" ? "中级" : "高级"}
           </button>
         ))}
+        <button
+          onClick={() => setFlagMode((v) => !v)}
+          className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+            flagMode
+              ? "bg-amber-500 text-white"
+              : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300"
+          }`}
+        >
+          {flagMode ? "🚩 标记中" : "⛏️ 翻开"}
+        </button>
       </div>
 
-      <div className="relative">
-        <div
-          className="grid gap-[2px] rounded-xl border-2 border-slate-500/30 bg-slate-300 p-2 shadow-lg dark:bg-slate-700"
-          style={{ gridTemplateColumns: `repeat(${cols}, ${cellSize}px)` }}
-        >
+      <div className="relative max-w-full">
+        <div className="max-w-full overflow-x-auto">
+          <div
+            className={`grid gap-[2px] rounded-xl border-2 bg-slate-300 p-2 shadow-lg transition-colors dark:bg-slate-700 ${
+              flagMode ? "border-amber-500" : "border-slate-500/30"
+            }`}
+            style={{ gridTemplateColumns: `repeat(${cols}, ${cellSize}px)` }}
+          >
           {cells.flatMap((row, r) =>
             row.map((cell, c) => (
               <button
@@ -206,6 +229,7 @@ export default function MinesweeperGame() {
               </button>
             ))
           )}
+          </div>
         </div>
 
         {status !== "playing" && (
@@ -220,7 +244,7 @@ export default function MinesweeperGame() {
         )}
       </div>
 
-      <p className="text-xs text-zinc-500">左键翻开 · 右键标记地雷 🚩</p>
+      <p className="text-xs text-zinc-500">点击翻开 · 右键或开启 🚩 标记模式插旗</p>
     </div>
   );
 }

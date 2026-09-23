@@ -70,7 +70,7 @@ export default function Home() {
       {/* 头部 */}
       <header className="mb-10 text-center">
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-          🎮 游戏<span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">乐园</span>
+          糖<span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">老八</span>
         </h1>
         <p className="mt-3 text-zinc-500 dark:text-zinc-400">
           五个经典小游戏，随时开玩 · 分数自动保存在本地

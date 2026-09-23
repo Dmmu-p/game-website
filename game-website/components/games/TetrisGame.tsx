@@ -189,6 +189,17 @@ export default function TetrisGame() {
     draw();
   }, [lockPiece, spawn, gameOver, draw]);
 
+  const togglePause = useCallback(() => {
+    if (statusRef.current === "playing") {
+      statusRef.current = "paused";
+      setStatus("paused");
+    } else if (statusRef.current === "paused") {
+      statusRef.current = "playing";
+      setStatus("playing");
+    }
+    draw();
+  }, [draw]);
+
   // 游戏循环
   useEffect(() => {
     let alive = true;
@@ -220,10 +231,7 @@ export default function TetrisGame() {
         return;
       }
       if (k === "p" || k === "P") {
-        const next = statusRef.current === "paused" ? "playing" : "paused";
-        statusRef.current = next;
-        setStatus(next);
-        draw();
+        togglePause();
         return;
       }
       if (statusRef.current !== "playing") return;
@@ -255,50 +263,112 @@ export default function TetrisGame() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [start, moveX, stepDown, rotatePiece, hardDrop, draw]);
+  }, [start, moveX, stepDown, rotatePiece, hardDrop, togglePause, draw]);
 
   useEffect(() => {
     draw();
   }, [draw]);
 
   return (
-    <div className="flex items-start justify-center gap-4">
-      <div className="relative">
-        <canvas ref={canvasRef} width={COLS * CELL} height={ROWS * CELL} className="rounded-2xl border border-sky-500/20 shadow-lg" />
-        {status !== "playing" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl bg-slate-950/75 backdrop-blur-sm">
-            <p className="text-xl font-bold text-white">
-              {status === "ready" && "🧱 准备好了吗？"}
-              {status === "paused" && "⏸️ 已暂停"}
-              {status === "over" && `💀 游戏结束，得分 ${score}`}
-            </p>
-            <button onClick={start} className="rounded-full bg-sky-500 px-6 py-2.5 font-bold text-white transition hover:bg-sky-400">
-              {status === "over" ? "再来一局" : status === "paused" ? "继续" : "开始游戏"}
-            </button>
-            <p className="text-xs text-zinc-400">← → 移动 · ↑ 旋转 · 空格落底 · P 暂停</p>
-          </div>
-        )}
+    <div className="flex flex-col items-center gap-4 select-none">
+      {/* 移动端计分栏 */}
+      <div className="flex flex-wrap items-center justify-center gap-2 text-sm font-semibold sm:hidden">
+        <span className="rounded-full bg-sky-500/15 px-3 py-1 text-sky-600 dark:text-sky-400">得分 {score}</span>
+        <span className="rounded-full bg-zinc-500/15 px-3 py-1 text-zinc-600 dark:text-zinc-400">最高 {best}</span>
+        <span className="rounded-full bg-indigo-500/15 px-3 py-1 text-indigo-600 dark:text-indigo-400">行数 {lines}</span>
       </div>
 
-      <div className="hidden flex-col gap-3 sm:flex">
-        <div className="rounded-2xl bg-slate-100 p-4 dark:bg-zinc-800/60">
-          <p className="mb-2 text-xs font-bold text-zinc-500">下一个</p>
-          <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-slate-200 dark:bg-zinc-900">
-            {nextShape && (
-              <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${nextShape.matrix[0].length}, 16px)` }}>
-                {nextShape.matrix.flatMap((row, r) =>
-                  row.map((v, c) => (
-                    <div key={`${r}-${c}`} style={{ width: 16, height: 16, background: v ? nextShape.color : "transparent", borderRadius: 3 }} />
-                  ))
-                )}
-              </div>
-            )}
+      <div className="flex items-start justify-center gap-4">
+        <div className="relative">
+          <canvas ref={canvasRef} width={COLS * CELL} height={ROWS * CELL} className="rounded-2xl border border-sky-500/20 shadow-lg" />
+          {status !== "playing" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl bg-slate-950/75 backdrop-blur-sm">
+              <p className="text-xl font-bold text-white">
+                {status === "ready" && "🧱 准备好了吗？"}
+                {status === "paused" && "⏸️ 已暂停"}
+                {status === "over" && `💀 游戏结束，得分 ${score}`}
+              </p>
+              <button onClick={start} className="rounded-full bg-sky-500 px-6 py-2.5 font-bold text-white transition hover:bg-sky-400">
+                {status === "over" ? "再来一局" : status === "paused" ? "继续" : "开始游戏"}
+              </button>
+              <p className="px-4 text-center text-xs text-zinc-400">← → 移动 · ↑ 旋转 · 空格落底 · P 暂停</p>
+            </div>
+          )}
+        </div>
+
+        <div className="hidden flex-col gap-3 sm:flex">
+          <div className="rounded-2xl bg-slate-100 p-4 dark:bg-zinc-800/60">
+            <p className="mb-2 text-xs font-bold text-zinc-500">下一个</p>
+            <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-slate-200 dark:bg-zinc-900">
+              {nextShape && (
+                <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${nextShape.matrix[0].length}, 16px)` }}>
+                  {nextShape.matrix.flatMap((row, r) =>
+                    row.map((v, c) => (
+                      <div key={`${r}-${c}`} style={{ width: 16, height: 16, background: v ? nextShape.color : "transparent", borderRadius: 3 }} />
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="space-y-2 text-sm font-semibold">
+            <p className="rounded-full bg-sky-500/15 px-4 py-1.5 text-sky-600 dark:text-sky-400">得分 {score}</p>
+            <p className="rounded-full bg-zinc-500/15 px-4 py-1.5 text-zinc-600 dark:text-zinc-400">最高 {best}</p>
+            <p className="rounded-full bg-indigo-500/15 px-4 py-1.5 text-indigo-600 dark:text-indigo-400">行数 {lines}</p>
           </div>
         </div>
-        <div className="space-y-2 text-sm font-semibold">
-          <p className="rounded-full bg-sky-500/15 px-4 py-1.5 text-sky-600 dark:text-sky-400">得分 {score}</p>
-          <p className="rounded-full bg-zinc-500/15 px-4 py-1.5 text-zinc-600 dark:text-zinc-400">最高 {best}</p>
-          <p className="rounded-full bg-indigo-500/15 px-4 py-1.5 text-indigo-600 dark:text-indigo-400">行数 {lines}</p>
+      </div>
+
+      {/* 移动端触控按钮 */}
+      <div className="flex flex-col items-center gap-2 sm:hidden">
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            aria-label="左移"
+            className="flex h-14 w-16 items-center justify-center rounded-xl border-2 border-sky-500/30 bg-slate-100 text-2xl text-slate-700 transition active:scale-90 active:bg-sky-500 active:text-white dark:bg-zinc-800 dark:text-zinc-200"
+            onPointerDown={(e) => { e.preventDefault(); moveX(-1); }}
+          >
+            ◀
+          </button>
+          <button
+            type="button"
+            aria-label="下移"
+            className="flex h-14 w-16 items-center justify-center rounded-xl border-2 border-sky-500/30 bg-slate-100 text-2xl text-slate-700 transition active:scale-90 active:bg-sky-500 active:text-white dark:bg-zinc-800 dark:text-zinc-200"
+            onPointerDown={(e) => { e.preventDefault(); stepDown(); }}
+          >
+            ▼
+          </button>
+          <button
+            type="button"
+            aria-label="右移"
+            className="flex h-14 w-16 items-center justify-center rounded-xl border-2 border-sky-500/30 bg-slate-100 text-2xl text-slate-700 transition active:scale-90 active:bg-sky-500 active:text-white dark:bg-zinc-800 dark:text-zinc-200"
+            onPointerDown={(e) => { e.preventDefault(); moveX(1); }}
+          >
+            ▶
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            className="flex h-14 items-center justify-center rounded-xl border-2 border-indigo-500/30 bg-slate-100 px-5 text-base font-bold text-slate-700 transition active:scale-90 active:bg-indigo-500 active:text-white dark:bg-zinc-800 dark:text-zinc-200"
+            onPointerDown={(e) => { e.preventDefault(); rotatePiece(); }}
+          >
+            ⟳ 旋转
+          </button>
+          <button
+            type="button"
+            className="flex h-14 items-center justify-center rounded-xl border-2 border-sky-500/30 bg-slate-100 px-5 text-base font-bold text-slate-700 transition active:scale-90 active:bg-sky-500 active:text-white dark:bg-zinc-800 dark:text-zinc-200"
+            onPointerDown={(e) => { e.preventDefault(); hardDrop(); }}
+          >
+            ⤓ 落底
+          </button>
+          <button
+            type="button"
+            className="flex h-14 items-center justify-center rounded-xl border-2 border-amber-500/30 bg-slate-100 px-5 text-base font-bold text-slate-700 transition active:scale-90 active:bg-amber-500 active:text-white dark:bg-zinc-800 dark:text-zinc-200"
+            onPointerDown={(e) => { e.preventDefault(); togglePause(); }}
+          >
+            {status === "paused" ? "▶ 继续" : "⏸ 暂停"}
+          </button>
         </div>
       </div>
     </div>

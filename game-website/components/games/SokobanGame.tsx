@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { saveBestScore } from "@/lib/games";
+import { useFitCellSize } from "./useFitCellSize";
 
 // 图例: # 墙, . 空地, $ 箱子, @ 玩家, * 箱子在目标, + 玩家在目标, O 目标
 const LEVELS: string[][] = [
@@ -171,21 +172,43 @@ export default function SokobanGame() {
     return () => window.removeEventListener("keydown", onKey);
   }, [move, undo, reset, levelIdx]);
 
-  const cellSize = Math.min(44, Math.floor(360 / Math.max(grid[0]?.length ?? 8, 8)));
+  const cellSize = useFitCellSize(grid[0]?.length ?? 8, 44, 20, 76);
+
+  // 移动端滑动控制
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const SWIPE_THRESHOLD = 24;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStartRef.current;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) return;
+    if (Math.abs(dx) > Math.abs(dy)) move(0, dx > 0 ? 1 : -1);
+    else move(dy > 0 ? 1 : -1, 0);
+  };
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-4 select-none">
       <div className="flex flex-wrap items-center justify-center gap-2 text-sm font-semibold">
         <span className="rounded-full bg-amber-500/15 px-4 py-1.5 text-amber-600 dark:text-amber-400">第 {levelIdx + 1} / {LEVELS.length} 关</span>
         <span className="rounded-full bg-zinc-500/15 px-4 py-1.5 text-zinc-600 dark:text-zinc-400">步数 {steps}</span>
         <span className="rounded-full bg-zinc-500/15 px-4 py-1.5 text-zinc-600 dark:text-zinc-400">最佳 {bestSteps || "—"}</span>
       </div>
 
-      <div className="relative">
-        <div
-          className="grid gap-0 overflow-hidden rounded-xl border-2 border-amber-500/30 bg-slate-900 p-1 shadow-lg"
-          style={{ gridTemplateColumns: `repeat(${grid[0]?.length ?? 8}, ${cellSize}px)` }}
-        >
+      <div className="relative max-w-full">
+        <div className="max-w-full overflow-x-auto">
+          <div
+            className="grid gap-0 overflow-hidden rounded-xl border-2 border-amber-500/30 bg-slate-900 p-1 shadow-lg touch-none"
+            style={{ gridTemplateColumns: `repeat(${grid[0]?.length ?? 8}, ${cellSize}px)` }}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+          >
           {grid.flatMap((row, r) =>
             row.map((cell, c) => {
               const hasBox = boxes.some((b) => b.r === r && b.c === c);
@@ -214,6 +237,7 @@ export default function SokobanGame() {
               );
             })
           )}
+          </div>
         </div>
 
         {won && (
@@ -240,6 +264,44 @@ export default function SokobanGame() {
           选关
         </button>
       </div>
+
+      {/* 移动端十字方向键 */}
+      <div className="mt-1 grid grid-cols-3 grid-rows-3 gap-1.5 sm:hidden">
+        <button
+          type="button"
+          aria-label="上移"
+          className="col-start-2 row-start-1 flex h-16 w-16 items-center justify-center rounded-xl border-2 border-amber-500/30 bg-slate-100 text-xl text-slate-700 transition active:scale-90 active:border-amber-500 active:bg-amber-500 active:text-white dark:bg-zinc-800 dark:text-zinc-200"
+          onClick={() => move(-1, 0)}
+        >
+          ▲
+        </button>
+        <button
+          type="button"
+          aria-label="左移"
+          className="col-start-1 row-start-2 flex h-16 w-16 items-center justify-center rounded-xl border-2 border-amber-500/30 bg-slate-100 text-xl text-slate-700 transition active:scale-90 active:border-amber-500 active:bg-amber-500 active:text-white dark:bg-zinc-800 dark:text-zinc-200"
+          onClick={() => move(0, -1)}
+        >
+          ◀
+        </button>
+        <button
+          type="button"
+          aria-label="右移"
+          className="col-start-3 row-start-2 flex h-16 w-16 items-center justify-center rounded-xl border-2 border-amber-500/30 bg-slate-100 text-xl text-slate-700 transition active:scale-90 active:border-amber-500 active:bg-amber-500 active:text-white dark:bg-zinc-800 dark:text-zinc-200"
+          onClick={() => move(0, 1)}
+        >
+          ▶
+        </button>
+        <button
+          type="button"
+          aria-label="下移"
+          className="col-start-2 row-start-3 flex h-16 w-16 items-center justify-center rounded-xl border-2 border-amber-500/30 bg-slate-100 text-xl text-slate-700 transition active:scale-90 active:border-amber-500 active:bg-amber-500 active:text-white dark:bg-zinc-800 dark:text-zinc-200"
+          onClick={() => move(1, 0)}
+        >
+          ▼
+        </button>
+      </div>
+
+      <p className="text-xs text-zinc-500 sm:hidden">滑动屏幕或使用方向键移动</p>
     </div>
   );
 }
